@@ -1,0 +1,17 @@
+{
+  "name": "remember-app",
+  "version": "1.0.0",
+  "description": "ReMember - Personal Digital Memory Vault",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "nodemon server/server.js",
+    "client": "npm start --prefix client",
+    "server": "nodemon server/server.js",
+    "build": "npm run build --prefix client",
+    "install-all": "npm install && cd client && npm install"
+  },
+  "keywords": ["memory", "vault", "password", "tasks", "MERN"],
+  "author": "",
+  "license": "MIT"
+}
