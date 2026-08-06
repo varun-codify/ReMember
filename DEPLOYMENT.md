@@ -148,25 +148,13 @@ vercel logs [deployment-url]
 vercel remove [deployment-name]
 ```
 
-## ⚠️ Important: `client/` Git Structure
+## Git Structure — Resolved
 
-`client/` is its own local Git repository (created by Create React App) and is
-currently tracked by the parent repo as a **git link with no remote and no
-`.gitmodules`**. If you deploy from a fresh clone (e.g. GitHub → Vercel), the
-`client/` directory will be empty and the frontend build will fail.
-
-Before deploying from CI or a fresh clone, either:
-
-1. **Convert `client/` to a regular tracked directory** (recommended):
-   ```bash
-   # from the parent repo — this unlinks the git link; client files must be committed to the parent
-   git rm --cached client
-   rm -rf client/.git   # only after backing up / confirming the client repo is not needed separately
-   git add client
-   git commit -m "Track client as a regular directory"
-   ```
-2. Or push `client/` to a remote and register it as a proper submodule
-   (`.gitmodules`), then `git submodule update --init --recursive` on CI.
+`client/` was previously a git link to a local-only CRA repository (no remote,
+no `.gitmodules`), which would have made a fresh clone or CI deployment fail.
+It has been converted to a **regular tracked directory** — a fresh clone now
+contains the full frontend. The original client repo history is preserved at
+`../client-repo-backup-7d85dc1.bundle` (outside this repo).
 
 ## Rate Limiting Note
 

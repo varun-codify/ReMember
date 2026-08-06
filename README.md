@@ -347,7 +347,7 @@ This is a **personal-use implementation** with good security practices. For ente
 
 ## 📦 Repository Notes
 
-- **Git layout**: `client/` is its own local Git repository (created by Create React App) and is tracked by the parent repo as a git link with **no remote configured**. If you clone the parent repo and `client/` appears empty, restore it from the existing checkout or re-`git add` it as a regular directory.
+- **Git layout**: `client/` is tracked as a **regular directory** in this repo (it was previously a git link to a local-only CRA repo with no remote). A fresh clone now includes the full frontend. The original client repo history is preserved in a backup bundle at `../client-repo-backup-7d85dc1.bundle` (outside this repo) — restore it with `git clone <bundle> client-restore` if ever needed.
 - **Same-origin API**: the frontend defaults to the relative `/api` path, so a single deployment (Vercel, or the Express server serving the built React app) works without extra configuration. Set `REACT_APP_API_URL` only if the API is hosted separately.
 - **Secrets**: `JWT_SECRET` and `ENCRYPTION_KEY` are required in production — the server fails fast if they are missing. Never commit `.env` files.
 
