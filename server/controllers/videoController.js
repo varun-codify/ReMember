@@ -1,21 +1,5 @@
 const Video = require('../models/Video');
-
-// Helper function to extract YouTube video ID
-const extractYouTubeId = (url) => {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
-    /youtube\.com\/embed\/([^&\n?#]+)/,
-    /youtube\.com\/v\/([^&\n?#]+)/
-  ];
-
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match && match[1]) {
-      return match[1];
-    }
-  }
-  return null;
-};
+const { extractYouTubeId, buildThumbnail } = require('../utils/youtube');
 
 // @route   GET /api/videos
 // @desc    Get all videos for user
@@ -97,7 +81,7 @@ exports.createVideo = async (req, res) => {
     }
 
     // Generate thumbnail URL
-    const thumbnail = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+    const thumbnail = buildThumbnail(videoId);
 
     const video = new Video({
       userId: req.userId,

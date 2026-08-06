@@ -348,7 +348,7 @@ PORT=5001 npm run dev
 3. **Use HTTPS** - Essential in production
 4. **Enable CORS carefully** - Only allow trusted origins
 5. **Rate limiting** - Add in production
-6. **Input validation** - Implemented with express-validator
+6. **Input validation** - Server-side checks on all routes
 7. **SQL Injection** - Not applicable (using MongoDB)
 8. **Password strength** - Enforce min 6 chars (extend in production)
 

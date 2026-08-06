@@ -209,7 +209,7 @@ For comprehensive setup instructions, environment configuration, and testing gui
 - **JWT Tokens**: 7-day expiration, verified on each request
 - **Vault Passkey**: Additional security layer
 - **Data Isolation**: Each user sees only their own data
-- **Input Validation**: Express-validator on all routes
+- **Input Validation**: Server-side validation on every route
 - **No Plain Text**: Sensitive data never stored unencrypted
 
 ## 🎨 UI/UX Design
@@ -279,9 +279,8 @@ For comprehensive setup instructions, environment configuration, and testing gui
 ## 📊 Performance
 
 - Optimized React components
-- Lazy loading routes
-- API response caching
-- Efficient MongoDB queries
+- Lazy loading routes (code-split page bundles)
+- Efficient MongoDB queries (userId-indexed collections)
 - Minimal bundle size
 - Fast initial load time
 
@@ -345,6 +344,12 @@ This is a **personal-use implementation** with good security practices. For ente
 - Security logging
 - Regular penetration testing
 - Compliance requirements (GDPR, CCPA, etc.)
+
+## 📦 Repository Notes
+
+- **Git layout**: `client/` is its own local Git repository (created by Create React App) and is tracked by the parent repo as a git link with **no remote configured**. If you clone the parent repo and `client/` appears empty, restore it from the existing checkout or re-`git add` it as a regular directory.
+- **Same-origin API**: the frontend defaults to the relative `/api` path, so a single deployment (Vercel, or the Express server serving the built React app) works without extra configuration. Set `REACT_APP_API_URL` only if the API is hosted separately.
+- **Secrets**: `JWT_SECRET` and `ENCRYPTION_KEY` are required in production — the server fails fast if they are missing. Never commit `.env` files.
 
 ## 📄 License
 

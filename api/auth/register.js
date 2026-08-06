@@ -3,11 +3,12 @@ const allowCors = require('../_utils/cors');
 const handleError = require('../_utils/errorHandler');
 const User = require('../../server/models/User');
 const jwt = require('jsonwebtoken');
+const { jwtSecret } = require('../_utils/env');
 
 const generateToken = (userId) => {
     return jwt.sign(
         { userId },
-        process.env.JWT_SECRET || 'your_jwt_secret',
+        jwtSecret(),
         { expiresIn: '7d' }
     );
 };

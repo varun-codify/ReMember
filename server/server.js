@@ -17,6 +17,10 @@ const websiteRoutes = require('./routes/websites');
 // Initialize Express app
 const app = express();
 
+// Trust the first proxy hop so req.ip is correct behind reverse proxies
+// (used by rate limiting). Safe because only the immediate proxy is trusted.
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
@@ -25,11 +29,18 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Fail fast in production if required secrets are missing
+if (process.env.NODE_ENV === 'production') {
+  ['JWT_SECRET', 'ENCRYPTION_KEY', 'MONGODB_URI'].forEach((key) => {
+    if (!process.env[key]) {
+      console.error(`❌ Missing required environment variable: ${key}`);
+      process.exit(1);
+    }
+  });
+}
+
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/remember', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/remember')
   .then(() => console.log('✅ MongoDB connected successfully'))
   .catch((err) => {
     console.error('❌ MongoDB connection error:', err.message);

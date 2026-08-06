@@ -3,6 +3,7 @@ const allowCors = require('../_utils/cors');
 const handleError = require('../_utils/errorHandler');
 const authMiddleware = require('../_middleware/auth');
 const Password = require('../../server/models/Password');
+const User = require('../../server/models/User');
 
 async function handler(req, res) {
     // Apply auth middleware
@@ -26,6 +27,27 @@ async function handler(req, res) {
                             message: 'Password not found'
                         });
                         return resolve();
+                    }
+
+                    // Enforce the vault passkey before returning plaintext
+                    const user = await User.findById(req.userId).select('vaultPasskey');
+                    if (user && user.vaultPasskey) {
+                        const provided = req.headers['x-vault-passkey'];
+                        if (!provided) {
+                            res.status(403).json({
+                                success: false,
+                                message: 'Vault passkey required'
+                            });
+                            return resolve();
+                        }
+                        const isMatch = await user.compareVaultPasskey(provided);
+                        if (!isMatch) {
+                            res.status(403).json({
+                                success: false,
+                                message: 'Invalid vault passkey'
+                            });
+                            return resolve();
+                        }
                     }
 
                     // Decrypt password

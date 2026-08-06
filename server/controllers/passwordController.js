@@ -1,4 +1,5 @@
 const Password = require('../models/Password');
+const User = require('../models/User');
 
 // @route   GET /api/passwords
 // @desc    Get all passwords for user
@@ -8,7 +9,9 @@ exports.getAllPasswords = async (req, res) => {
     const passwords = await Password.find({ userId: req.userId })
       .sort({ lastModified: -1 });
 
-    // Return encrypted passwords - decryption happens on frontend if needed
+    // Return encrypted passwords. Plaintext is never included here -
+    // decryption only happens on-demand in GET /passwords/:id after the
+    // vault passkey has been verified.
     res.json({
       success: true,
       count: passwords.length,
@@ -24,7 +27,7 @@ exports.getAllPasswords = async (req, res) => {
 };
 
 // @route   GET /api/passwords/:id
-// @desc    Get single password (with decryption)
+// @desc    Get single password (with decryption, vault passkey required)
 // @access  Private
 exports.getPassword = async (req, res) => {
   try {
@@ -38,6 +41,25 @@ exports.getPassword = async (req, res) => {
         success: false,
         message: 'Password not found'
       });
+    }
+
+    // Enforce the vault passkey before returning plaintext
+    const user = await User.findById(req.userId).select('vaultPasskey');
+    if (user && user.vaultPasskey) {
+      const provided = req.header('x-vault-passkey');
+      if (!provided) {
+        return res.status(403).json({
+          success: false,
+          message: 'Vault passkey required'
+        });
+      }
+      const isMatch = await user.compareVaultPasskey(provided);
+      if (!isMatch) {
+        return res.status(403).json({
+          success: false,
+          message: 'Invalid vault passkey'
+        });
+      }
     }
 
     // Decrypt password

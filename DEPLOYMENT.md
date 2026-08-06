@@ -58,6 +58,11 @@ npm install -g vercel
    - In which directory is your code located: `./`
    - Want to override settings: `N`
 
+   `vercel.json` is already configured to (1) build the React app in
+   `client/` via `@vercel/static-build` and (2) route all non-API traffic to
+   the built `index.html`, so the frontend works after a fresh deploy with no
+   extra steps.
+
 4. **Set Environment Variables:**
    
    After initial deployment, configure these environment variables in Vercel Dashboard:
@@ -76,6 +81,10 @@ npm install -g vercel
    ```bash
    vercel --prod
    ```
+
+> The frontend calls the API at the **same origin** (`/api`) by default, so no
+> `REACT_APP_API_URL` is needed for a single-project Vercel deployment. Only
+> set it if you host the frontend and API on different domains.
 
 ## Step 4: Test Your Deployment
 
@@ -138,6 +147,33 @@ vercel logs [deployment-url]
 # Remove deployment
 vercel remove [deployment-name]
 ```
+
+## ⚠️ Important: `client/` Git Structure
+
+`client/` is its own local Git repository (created by Create React App) and is
+currently tracked by the parent repo as a **git link with no remote and no
+`.gitmodules`**. If you deploy from a fresh clone (e.g. GitHub → Vercel), the
+`client/` directory will be empty and the frontend build will fail.
+
+Before deploying from CI or a fresh clone, either:
+
+1. **Convert `client/` to a regular tracked directory** (recommended):
+   ```bash
+   # from the parent repo — this unlinks the git link; client files must be committed to the parent
+   git rm --cached client
+   rm -rf client/.git   # only after backing up / confirming the client repo is not needed separately
+   git add client
+   git commit -m "Track client as a regular directory"
+   ```
+2. Or push `client/` to a remote and register it as a proper submodule
+   (`.gitmodules`), then `git submodule update --init --recursive` on CI.
+
+## Rate Limiting Note
+
+The Express server rate-limits login/register (in-memory). The Vercel
+serverless API does not ship a rate limiter — if you deploy the API to Vercel
+for public use, enable **Vercel's native rate limiting** (Pro plan) or add a
+Redis-backed limiter.
 
 ## Custom Domain (Optional)
 

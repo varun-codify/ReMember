@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../../server/models/User');
 const connectToDatabase = require('../_utils/db');
+const { jwtSecret } = require('../_utils/env');
 
 async function authMiddleware(req, res, next) {
     try {
@@ -15,7 +16,7 @@ async function authMiddleware(req, res, next) {
         }
 
         // Verify token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+        const decoded = jwt.verify(token, jwtSecret());
 
         // Connect to database
         await connectToDatabase();

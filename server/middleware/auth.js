@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { jwtSecret } = require('../config');
 
 const authMiddleware = async (req, res, next) => {
   try {
@@ -14,7 +15,7 @@ const authMiddleware = async (req, res, next) => {
     }
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+    const decoded = jwt.verify(token, jwtSecret());
     
     // Find user
     const user = await User.findById(decoded.userId).select('-password -vaultPasskey');

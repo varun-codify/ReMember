@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const CryptoJS = require('crypto-js');
+const { encryptionKey } = require('../config');
 
 const passwordSchema = new mongoose.Schema({
   userId: {
@@ -48,11 +49,10 @@ const passwordSchema = new mongoose.Schema({
 passwordSchema.pre('save', function(next) {
   if (!this.isModified('encryptedPassword')) return next();
   
-  // Encrypt using AES (in production, use a more robust solution)
-  const encryptionKey = process.env.ENCRYPTION_KEY || 'default-key-change-in-production';
+  // Encrypt using AES (at-rest protection only; NOT end-to-end encryption)
   this.encryptedPassword = CryptoJS.AES.encrypt(
     this.encryptedPassword,
-    encryptionKey
+    encryptionKey()
   ).toString();
   
   next();
@@ -60,8 +60,7 @@ passwordSchema.pre('save', function(next) {
 
 // Method to decrypt password
 passwordSchema.methods.decryptPassword = function() {
-  const encryptionKey = process.env.ENCRYPTION_KEY || 'default-key-change-in-production';
-  const bytes = CryptoJS.AES.decrypt(this.encryptedPassword, encryptionKey);
+  const bytes = CryptoJS.AES.decrypt(this.encryptedPassword, encryptionKey());
   return bytes.toString(CryptoJS.enc.Utf8);
 };
 
