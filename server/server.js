@@ -13,6 +13,7 @@ const passwordRoutes = require('./routes/passwords');
 const taskRoutes = require('./routes/tasks');
 const videoRoutes = require('./routes/videos');
 const websiteRoutes = require('./routes/websites');
+const aiRoutes = require('./routes/ai');
 
 // Initialize Express app
 const app = express();
@@ -42,6 +43,7 @@ app.use('/api/passwords', passwordRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/videos', videoRoutes);
 app.use('/api/websites', websiteRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
