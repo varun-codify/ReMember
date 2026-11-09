@@ -33,7 +33,32 @@ const userSchema = new mongoose.Schema({
   lastLogin: {
     type: Date,
     default: null
-  }
+  },
+  weeklyDigestSentAt: {
+    type: Date,
+    default: null
+  },
+  // Browser push notification subscriptions (Web Push API)
+  pushSubscriptions: [{
+    endpoint: {
+      type: String,
+      required: true
+    },
+    keys: {
+      p256dh: {
+        type: String,
+        default: ''
+      },
+      auth: {
+        type: String,
+        default: ''
+      }
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
 }, {
   timestamps: true
 });

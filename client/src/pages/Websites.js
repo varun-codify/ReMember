@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import EmptyState from '../components/EmptyState';
 import api from '../api';
+import { MEDIA_TYPE_META } from '../utils/mediaType';
+import SafeExternalLink from '../components/SafeExternalLink';
+import { safeExternalUrl } from '../utils/safeUrl';
 
 const Websites = () => {
   const [websites, setWebsites] = useState([]);
@@ -9,9 +14,22 @@ const Websites = () => {
   const [websiteToDelete, setWebsiteToDelete] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ name: '', url: '', description: '', category: 'other' });
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [summarizingId, setSummarizingId] = useState(null);
+  const navigate = useNavigate();
+
+  const askAI = (website) =>
+    navigate(`/assistant?contextType=website&contextId=${website._id}&title=${encodeURIComponent(website.name)}&prompt=${encodeURIComponent('Explain this article and its key takeaways')}`);
 
   useEffect(() => {
     fetchWebsites();
+    // One delayed refresh to catch background AI enrichment after a capture
+    const t = setTimeout(fetchWebsites, 3000);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    api.get('/ai/status').then((res) => setAiEnabled(!!res.data?.data?.enabled)).catch(() => {});
   }, []);
 
   const fetchWebsites = async () => {
@@ -64,6 +82,30 @@ const Websites = () => {
     }
   };
 
+  const updateReadingProgress = async (website, progress) => {
+    try {
+      await api.put(`/websites/${website._id}`, {
+        readingProgress: progress,
+        lastVisited: new Date(),
+      });
+      fetchWebsites();
+    } catch (error) {
+      console.error('Error updating progress:', error);
+    }
+  };
+
+  const summarizeWebsite = async (website) => {
+    setSummarizingId(website._id);
+    try {
+      await api.post('/ai/summarize-item', { type: 'website', id: website._id });
+      fetchWebsites();
+    } catch (error) {
+      alert(error.response?.data?.message || 'AI summarization failed');
+    } finally {
+      setSummarizingId(null);
+    }
+  };
+
   const confirmDelete = (website) => {
     setWebsiteToDelete(website);
     setShowDeleteModal(true);
@@ -89,8 +131,10 @@ const Websites = () => {
     utilities: 'neo-badge-yellow',
     development: 'neo-badge-pink',
     design: 'neo-badge-purple',
-    other: 'neo-badge-white'
+    other: 'neo-badge-white',
   };
+
+  const progressSteps = [25, 50, 75, 100];
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-primary)' }}>
@@ -99,29 +143,41 @@ const Websites = () => {
         <div className="flex justify-between items-center mb-12 neo-animate-in">
           <div>
             <h1 className="neo-title text-5xl mb-2">Websites & AI Memory</h1>
-            <p className="text-lg" style={{ color: 'var(--text-secondary)' }}>Remember useful websites and tools</p>
+            <p className="text-lg" style={{ color: 'var(--text-secondary)' }}>
+              Webpages, PDFs, images, and GitHub repos — saved and searchable
+            </p>
           </div>
-          <button
-            onClick={() => setShowModal(true)}
-            className="neo-btn neo-btn-primary"
-          >
-            <span className="mr-2">🔖</span>
-            Add Website
+          <button onClick={() => setShowModal(true)} className="neo-btn neo-btn-primary">
+            <span className="mr-2">🔖</span> Add Website
           </button>
         </div>
 
         {websites.length === 0 ? (
-          <div className="text-center py-24 neo-card">
-            <div className="text-6xl mb-6">🌐</div>
-            <p className="text-lg mb-6" style={{ color: 'var(--text-secondary)' }}>No websites saved yet</p>
-            <button onClick={() => setShowModal(true)} className="neo-btn neo-btn-blue">
-              Add your first website
-            </button>
-          </div>
+          <EmptyState
+            icon="🌐"
+            iconColor="neo-icon-yellow"
+            title="No links saved yet"
+            description="Save webpages, PDFs, images, and GitHub repos — ReMember extracts the content so you can search inside them."
+            actions={[
+              { label: '🔖 Add a website', variant: 'primary', onClick: () => setShowModal(true) },
+              { label: '⚡ Quick capture', variant: 'secondary', to: '/capture' },
+            ]}
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {websites.map((website, index) => (
               <div key={website._id} className={`neo-card-sm neo-animate-in stagger-${Math.min((index % 4) + 1, 4) * 100}`}>
+                {website.mediaType === 'image' && safeExternalUrl(website.url) && (
+                  <SafeExternalLink href={website.url} className="block mb-3">
+                    <img
+                      src={safeExternalUrl(website.url)}
+                      alt={website.name}
+                      className="w-full h-40 object-cover rounded-lg border-3"
+                      style={{ borderColor: 'var(--border-primary)', boxShadow: 'var(--shadow-sm)' }}
+                    />
+                  </SafeExternalLink>
+                )}
+
                 <div className="flex justify-between items-start gap-2 mb-3">
                   <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{website.name}</h3>
                   <div className="flex items-center gap-1 flex-shrink-0">
@@ -145,24 +201,85 @@ const Websites = () => {
                     </button>
                   </div>
                 </div>
+
                 {website.description && (
                   <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>{website.description}</p>
                 )}
-                <div className="flex items-center justify-between">
-                  <span className={`neo-badge ${categoryColors[website.category]}`}>
-                    {website.category}
-                  </span>
-                  <a
-                    href={website.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="neo-link text-sm flex items-center space-x-1"
-                  >
+
+                {/* AI summary */}
+                {website.summary && (
+                  <div className="mb-3 p-3 rounded-lg" style={{ background: 'var(--bg-secondary)', border: '2px solid var(--border-light)' }}>
+                    <p className="text-xs font-bold mb-1" style={{ color: 'var(--text-muted)' }}>✨ AI summary</p>
+                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{website.summary}</p>
+                    {website.keyPoints?.length > 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {website.keyPoints.slice(0, 3).map((point, i) => (
+                          <li key={i} className="text-xs flex gap-1.5" style={{ color: 'var(--text-secondary)' }}>
+                            <span style={{ color: 'var(--accent-coral)' }}>•</span>{point}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+                {!website.summary && aiEnabled && (
+                  <button onClick={() => summarizeWebsite(website)} disabled={summarizingId === website._id} className="text-xs font-bold neo-link mb-3">
+                    {summarizingId === website._id ? '✨ Summarizing…' : '✨ Summarize with AI'}
+                  </button>
+                )}
+                {aiEnabled && (
+                  <button onClick={() => askAI(website)} className="text-xs font-bold neo-link mb-3 ml-3">
+                    🤖 Ask AI
+                  </button>
+                )}
+
+                {/* Reading progress */}
+                {website.readingProgress > 0 && website.readingProgress < 100 && (
+                  <div className="mb-3">
+                    <div className="h-2 rounded-full overflow-hidden mb-1" style={{ background: 'var(--bg-secondary)', border: '1.5px solid var(--border-primary)' }}>
+                      <div className="h-full transition-all duration-300" style={{ width: `${website.readingProgress}%`, background: 'var(--accent-green)' }} />
+                    </div>
+                    <p className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                      📖 Continue reading — {website.readingProgress}%
+                    </p>
+                  </div>
+                )}
+                <div className="flex items-center gap-1 mb-3">
+                  <span className="text-xs font-bold mr-1" style={{ color: 'var(--text-muted)' }}>Progress:</span>
+                  {progressSteps.map((step) => (
+                    <button
+                      key={step}
+                      onClick={() => updateReadingProgress(website, step)}
+                      className="text-[10px] font-bold px-2 py-0.5 rounded border-2 transition-all"
+                      style={{
+                        borderColor: 'var(--border-light)',
+                        color: website.readingProgress === step ? 'white' : 'var(--text-secondary)',
+                        background: website.readingProgress === step ? 'var(--accent-blue)' : 'transparent',
+                      }}
+                    >
+                      {step === 100 ? 'Done' : `${step}%`}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`neo-badge ${categoryColors[website.category]}`}>{website.category}</span>
+                    {website.mediaType && website.mediaType !== 'webpage' && (
+                      <span className="neo-badge neo-badge-white text-xs">
+                        {MEDIA_TYPE_META[website.mediaType]?.icon} {MEDIA_TYPE_META[website.mediaType]?.label}
+                      </span>
+                    )}
+                    {website.mediaType === 'github' && website.githubStars > 0 && (
+                      <span className="neo-badge neo-badge-white text-xs">⭐ {website.githubStars}{website.githubLanguage ? ` · ${website.githubLanguage}` : ''}</span>
+                    )}
+                  </div>
+                  <SafeExternalLink href={website.url} className="neo-link text-sm flex items-center space-x-1">
                     <span>Visit</span>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
-                  </a>
+                  </SafeExternalLink>
                 </div>
               </div>
             ))}
@@ -176,40 +293,19 @@ const Websites = () => {
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
                   <label className="block text-sm font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Name *</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="neo-input"
-                    required
-                  />
+                  <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="neo-input" required />
                 </div>
                 <div>
                   <label className="block text-sm font-bold mb-2" style={{ color: 'var(--text-primary)' }}>URL *</label>
-                  <input
-                    type="url"
-                    value={formData.url}
-                    onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-                    className="neo-input"
-                    required
-                  />
+                  <input type="url" value={formData.url} onChange={(e) => setFormData({ ...formData, url: e.target.value })} className="neo-input" required />
                 </div>
                 <div>
                   <label className="block text-sm font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="neo-textarea"
-                    rows="3"
-                  />
+                  <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="neo-textarea" rows="3" />
                 </div>
                 <div>
                   <label className="block text-sm font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Category</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="neo-select"
-                  >
+                  <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="neo-select">
                     <option value="other">Other</option>
                     <option value="ai">AI</option>
                     <option value="productivity">Productivity</option>
@@ -221,16 +317,13 @@ const Websites = () => {
                 </div>
                 <div className="flex gap-3 pt-4">
                   <button type="submit" className="neo-btn neo-btn-primary flex-1">{editingId ? 'Update' : 'Save'}</button>
-                  <button type="button" onClick={() => { setShowModal(false); resetForm(); }} className="neo-btn neo-btn-secondary flex-1">
-                    Cancel
-                  </button>
+                  <button type="button" onClick={() => { setShowModal(false); resetForm(); }} className="neo-btn neo-btn-secondary flex-1">Cancel</button>
                 </div>
               </form>
             </div>
           </div>
         )}
 
-        {/* Delete Confirmation Modal */}
         {showDeleteModal && websiteToDelete && (
           <div className="fixed inset-0 flex items-center justify-center z-50 p-6 neo-animate-in" style={{ background: 'rgba(0, 0, 0, 0.5)' }}>
             <div className="neo-card max-w-md w-full">
@@ -241,28 +334,9 @@ const Websites = () => {
                   Are you sure you want to delete <strong>{websiteToDelete.name}</strong>? This action cannot be undone.
                 </p>
               </div>
-
               <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowDeleteModal(false);
-                    setWebsiteToDelete(null);
-                  }}
-                  className="neo-btn neo-btn-secondary flex-1"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDelete}
-                  className="neo-btn flex-1"
-                  style={{
-                    background: '#c92a2a',
-                    borderColor: '#5c0a0a',
-                    color: 'white'
-                  }}
-                >
-                  Delete
-                </button>
+                <button onClick={() => { setShowDeleteModal(false); setWebsiteToDelete(null); }} className="neo-btn neo-btn-secondary flex-1">Cancel</button>
+                <button onClick={handleDelete} className="neo-btn flex-1" style={{ background: '#c92a2a', borderColor: '#5c0a0a', color: 'white' }}>Delete</button>
               </div>
             </div>
           </div>

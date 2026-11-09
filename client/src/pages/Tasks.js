@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
+import EmptyState from '../components/EmptyState';
 import api from '../api';
 
 const Tasks = () => {
@@ -130,13 +131,20 @@ const Tasks = () => {
 
         {/* Tasks List */}
         {filteredTasks.length === 0 ? (
-          <div className="text-center py-24 neo-card">
-            <div className="text-6xl mb-6">📝</div>
-            <p className="text-lg mb-6" style={{ color: 'var(--text-secondary)' }}>No tasks yet</p>
-            <button onClick={() => { resetForm(); setShowModal(true); }} className="neo-btn neo-btn-blue">
-              Create your first task
-            </button>
-          </div>
+          <EmptyState
+            icon="📝"
+            iconColor="neo-icon-pink"
+            title={filter === 'completed' ? 'Nothing done yet' : 'No tasks here'}
+            description={
+              filter === 'completed'
+                ? 'Tasks you complete will show up in this view.'
+                : 'Add a task with a due date and priority — ReMember will remind you before it slips your mind.'
+            }
+            actions={[
+              { label: '➕ Create a task', variant: 'primary', onClick: () => { resetForm(); setShowModal(true); } },
+              { label: '⚡ Quick capture', variant: 'secondary', to: '/capture' },
+            ]}
+          />
         ) : (
           <div className="space-y-4">
             {filteredTasks.map((task, index) => (

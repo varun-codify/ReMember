@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import Navbar from '../components/Navbar';
+import EmptyState from '../components/EmptyState';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
+import SafeExternalLink from '../components/SafeExternalLink';
 
 const PasswordVault = () => {
   const { user } = useAuth();
@@ -271,13 +273,16 @@ const PasswordVault = () => {
         )}
 
         {passwords.length === 0 ? (
-          <div className="text-center py-24 neo-card">
-            <div className="text-6xl mb-6">🔐</div>
-            <p className="text-lg mb-6" style={{ color: 'var(--text-secondary)' }}>No passwords saved yet</p>
-            <button onClick={() => { resetForm(); setShowModal(true); }} className="neo-btn neo-btn-blue">
-              Add your first password
-            </button>
-          </div>
+          <EmptyState
+            icon="🔐"
+            iconColor="neo-icon-blue"
+            title="Your vault is empty"
+            description="Store your first password — credentials stay encrypted behind your vault passkey, and only you can unlock them."
+            actions={[
+              { label: '➕ Add your first password', variant: 'primary', onClick: () => { resetForm(); setShowModal(true); } },
+              { label: '⚡ Quick capture', variant: 'secondary', to: '/capture' },
+            ]}
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {passwords.map((password, index) => (
@@ -365,9 +370,9 @@ const PasswordVault = () => {
                     </span>
                   </div>
                   {password.websiteUrl && (
-                    <a href={password.websiteUrl} target="_blank" rel="noopener noreferrer" className="neo-link text-sm block">
+                    <SafeExternalLink href={password.websiteUrl} className="neo-link text-sm block">
                       Visit Site →
-                    </a>
+                    </SafeExternalLink>
                   )}
                   {password.notes && <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>{password.notes}</p>}
                 </div>

@@ -39,6 +39,45 @@ const websiteSchema = new mongoose.Schema({
   lastVisited: {
     type: Date,
     default: null
+  },
+  // Universal capture: what kind of link is this?
+  mediaType: {
+    type: String,
+    enum: ['webpage', 'pdf', 'image', 'github'],
+    default: 'webpage'
+  },
+  // Extracted page/PDF text — powers full-text search
+  content: {
+    type: String,
+    default: ''
+  },
+  // AI summary + key points
+  summary: {
+    type: String,
+    default: ''
+  },
+  keyPoints: [{
+    type: String
+  }],
+  // Continue-reading support (0–100)
+  readingProgress: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100
+  },
+  // GitHub repo metadata
+  githubStars: {
+    type: Number,
+    default: 0
+  },
+  githubLanguage: {
+    type: String,
+    default: ''
+  },
+  githubDescription: {
+    type: String,
+    default: ''
   }
 }, {
   timestamps: true

@@ -3,6 +3,17 @@ const allowCors = require('../_utils/cors');
 const handleError = require('../_utils/errorHandler');
 const authMiddleware = require('../_middleware/auth');
 const Website = require('../../server/models/Website');
+const { isSafeUrl, sanitizeText, sanitizeTags } = require('../../server/utils/security');
+
+const sanitizeWebsite = (body) => {
+    const out = {};
+    if (body.name !== undefined) out.name = sanitizeText(body.name, { maxLength: 200 });
+    if (body.url !== undefined) out.url = sanitizeText(body.url, { maxLength: 2048 });
+    if (body.description !== undefined) out.description = sanitizeText(body.description, { maxLength: 5000 });
+    if (body.category !== undefined) out.category = sanitizeText(body.category, { maxLength: 40 });
+    if (body.tags !== undefined) out.tags = sanitizeTags(body.tags);
+    return out;
+};
 
 async function handler(req, res) {
     return new Promise((resolve) => {
@@ -44,15 +55,28 @@ async function handler(req, res) {
                         return resolve();
                     }
 
-                    const { name, url, description, category, tags, isFavorite, lastVisited } = req.body;
+                    const { isFavorite, lastVisited, readingProgress } = req.body;
+                    const cleaned = sanitizeWebsite(req.body);
 
-                    if (name) website.name = name;
-                    if (url) website.url = url;
-                    if (description !== undefined) website.description = description;
-                    if (category) website.category = category;
-                    if (tags !== undefined) website.tags = tags;
+                    if (cleaned.name) website.name = cleaned.name;
+                    if (cleaned.url) {
+                        if (!isSafeUrl(cleaned.url)) {
+                            res.status(400).json({
+                                success: false,
+                                message: 'Invalid URL. Only http(s) links are allowed.'
+                            });
+                            return resolve();
+                        }
+                        website.url = cleaned.url;
+                    }
+                    if (cleaned.description !== undefined) website.description = cleaned.description;
+                    if (cleaned.category) website.category = cleaned.category;
+                    if (cleaned.tags !== undefined) website.tags = cleaned.tags;
                     if (isFavorite !== undefined) website.isFavorite = isFavorite;
                     if (lastVisited !== undefined) website.lastVisited = lastVisited;
+                    if (readingProgress !== undefined) {
+                        website.readingProgress = Math.min(100, Math.max(0, Number(readingProgress) || 0));
+                    }
 
                     await website.save();
 

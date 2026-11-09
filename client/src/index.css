@@ -1,9 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* Neo-Brutalist Typography */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@700;800&display=swap');
 
 /* Neo-Brutalist Color Palette */
 :root {
@@ -166,6 +167,17 @@ body {
   background: var(--accent-yellow);
   color: var(--text-primary);
   border-color: var(--border-primary);
+}
+
+/* Purple Button */
+.neo-btn-purple {
+  background: var(--accent-purple);
+  color: white;
+  border-color: var(--border-primary);
+}
+
+.neo-btn-purple:hover:not(:disabled) {
+  background: #8578f2;
 }
 
 /* Small Button */
@@ -366,6 +378,10 @@ body {
   background: var(--accent-coral);
 }
 
+.neo-icon-purple {
+  background: var(--accent-purple);
+}
+
 /* Animations */
 @keyframes neoFadeIn {
   from {
@@ -443,10 +459,14 @@ body {
 }
 
 /* Container */
+/* NOTE: use padding-left and padding-right only — the padding shorthand here would
+   override Tailwind py and pb utilities on sections (same specificity, later rule wins)
+   and collapse all vertical spacing between Landing sections. */
 .neo-container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding-left: 2rem;
+  padding-right: 2rem;
 }
 
 /* Divider */
@@ -542,7 +562,8 @@ body {
 /* Responsive */
 @media (max-width: 768px) {
   .neo-container {
-    padding: 0 1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 
   .neo-card {
@@ -587,4 +608,65 @@ body {
   50% {
     box-shadow: 0 0 0 6px rgba(67, 233, 123, 0);
   }
+}
+
+/* ============ Dark Theme ============ */
+/* Toggled via the `data-theme` attribute on <html> (see public/index.html). */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Backgrounds — the app's "memory" dark palette */
+  --bg-primary: #0f141c;
+  --bg-card: #1a1f2e;
+  --bg-secondary: #252b3a;
+  --bg-tertiary: #202634;
+
+  /* Borders */
+  --border-primary: #3d4760;
+  --border-secondary: #8b93a7;
+  --border-light: #2d3548;
+  --border-color: #2d3548;
+
+  /* Text */
+  --text-primary: #e9ecf3;
+  --text-secondary: #aab4c8;
+  --text-muted: #7b869c;
+}
+
+/* Keep tailwind utility hovers from flashing bright gray/red/yellow in dark mode */
+[data-theme='dark'] .hover\:bg-gray-100:hover {
+  background-color: var(--bg-secondary);
+}
+
+[data-theme='dark'] .hover\:bg-yellow-100:hover {
+  background-color: rgba(254, 202, 87, 0.15);
+}
+
+[data-theme='dark'] .hover\:bg-green-100:hover {
+  background-color: rgba(67, 233, 123, 0.15);
+}
+
+[data-theme='dark'] .hover\:bg-red-100:hover {
+  background-color: rgba(255, 107, 107, 0.15);
+}
+
+[data-theme='dark'] .bg-white {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+}
+
+/* Smooth theme transitions for the surfaces that change */
+body,
+.neo-card,
+.neo-card-sm,
+.neo-stat-card,
+.neo-btn,
+.neo-input,
+.neo-textarea,
+.neo-select,
+.neo-logo,
+.neo-badge,
+.neo-alert,
+.neo-icon {
+  transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
 }

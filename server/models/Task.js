@@ -36,6 +36,10 @@ const taskSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  reminderSentAt: {
+    type: Date,
+    default: null
+  },
   tags: [{
     type: String,
     trim: true

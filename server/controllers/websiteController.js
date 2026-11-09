@@ -1,4 +1,18 @@
 const Website = require('../models/Website');
+const captureService = require('../services/captureService');
+const { isSafeUrl, sanitizeText, sanitizeTags } = require('../utils/security');
+
+// Sanitize the fields a website accepts. Only fields actually present in the
+// body are included, so this works for both create and partial update.
+const sanitizeWebsite = (body) => {
+  const out = {};
+  if (body.name !== undefined) out.name = sanitizeText(body.name, { maxLength: 200 });
+  if (body.url !== undefined) out.url = sanitizeText(body.url, { maxLength: 2048 });
+  if (body.description !== undefined) out.description = sanitizeText(body.description, { maxLength: 5000 });
+  if (body.category !== undefined) out.category = sanitizeText(body.category, { maxLength: 40 });
+  if (body.tags !== undefined) out.tags = sanitizeTags(body.tags);
+  return out;
+};
 
 // @route   GET /api/websites
 // @desc    Get all websites for user
@@ -62,7 +76,10 @@ exports.getWebsite = async (req, res) => {
 // @access  Private
 exports.createWebsite = async (req, res) => {
   try {
-    const { name, url, description, category, tags, isFavorite } = req.body;
+    const { isFavorite } = req.body;
+    const cleaned = sanitizeWebsite(req.body);
+    const name = cleaned.name;
+    const url = cleaned.url;
 
     if (!name || !url) {
       return res.status(400).json({
@@ -71,17 +88,43 @@ exports.createWebsite = async (req, res) => {
       });
     }
 
+    // Only http(s) links may be stored — blocks javascript:/data: URLs that
+    // would execute when rendered into <a href> by the client.
+    if (!isSafeUrl(url)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid URL. Only http(s) links are allowed.'
+      });
+    }
+
     const website = new Website({
       userId: req.userId,
       name,
       url,
-      description,
-      category: category || 'other',
-      tags,
+      description: cleaned.description,
+      category: cleaned.category || 'other',
+      tags: cleaned.tags,
       isFavorite: isFavorite || false
     });
 
     await website.save();
+
+    // Enrich in the background: classify the link (webpage/pdf/image/github),
+    // extract content for full-text search, pull GitHub metadata, and — when
+    // AI is enabled — summarize + suggest a category. Never blocks saving.
+    (async () => {
+      try {
+        const enrichment = await captureService.enrichWebsite({
+          name: website.name,
+          url: website.url,
+          description: website.description || '',
+          category: website.category
+        });
+        await Website.updateOne({ _id: website._id }, { $set: enrichment });
+      } catch (e) {
+        /* best effort */
+      }
+    })();
 
     res.status(201).json({
       success: true,
@@ -114,15 +157,27 @@ exports.updateWebsite = async (req, res) => {
       });
     }
 
-    const { name, url, description, category, tags, isFavorite, lastVisited } = req.body;
+    const { isFavorite, lastVisited, readingProgress } = req.body;
+    const cleaned = sanitizeWebsite(req.body);
 
-    if (name) website.name = name;
-    if (url) website.url = url;
-    if (description !== undefined) website.description = description;
-    if (category) website.category = category;
-    if (tags !== undefined) website.tags = tags;
+    if (cleaned.name) website.name = cleaned.name;
+    if (cleaned.url) {
+      if (!isSafeUrl(cleaned.url)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid URL. Only http(s) links are allowed.'
+        });
+      }
+      website.url = cleaned.url;
+    }
+    if (cleaned.description !== undefined) website.description = cleaned.description;
+    if (cleaned.category) website.category = cleaned.category;
+    if (cleaned.tags !== undefined) website.tags = cleaned.tags;
     if (isFavorite !== undefined) website.isFavorite = isFavorite;
     if (lastVisited !== undefined) website.lastVisited = lastVisited;
+    if (readingProgress !== undefined) {
+      website.readingProgress = Math.min(100, Math.max(0, Number(readingProgress) || 0));
+    }
 
     await website.save();
 

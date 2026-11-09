@@ -4,6 +4,17 @@ const handleError = require('../_utils/errorHandler');
 const authMiddleware = require('../_middleware/auth');
 const Password = require('../../server/models/Password');
 const User = require('../../server/models/User');
+const { isSafeUrl, sanitizeText } = require('../../server/utils/security');
+
+const sanitizePasswordMeta = (body) => {
+    const out = {};
+    if (body.websiteName !== undefined) out.websiteName = sanitizeText(body.websiteName, { maxLength: 200 });
+    if (body.websiteUrl !== undefined) out.websiteUrl = sanitizeText(body.websiteUrl, { maxLength: 2048 });
+    if (body.username !== undefined) out.username = sanitizeText(body.username, { maxLength: 200 });
+    if (body.notes !== undefined) out.notes = sanitizeText(body.notes, { maxLength: 5000 });
+    if (body.category !== undefined) out.category = sanitizeText(body.category, { maxLength: 40 });
+    return out;
+};
 
 async function handler(req, res) {
     // Apply auth middleware
@@ -75,14 +86,24 @@ async function handler(req, res) {
                         return resolve();
                     }
 
-                    const { websiteName, websiteUrl, username, password: newPassword, notes, category } = req.body;
+                    const { password: newPassword } = req.body;
+                    const meta = sanitizePasswordMeta(req.body);
 
-                    if (websiteName) password.websiteName = websiteName;
-                    if (websiteUrl !== undefined) password.websiteUrl = websiteUrl;
-                    if (username) password.username = username;
+                    if (meta.websiteName) password.websiteName = meta.websiteName;
+                    if (meta.websiteUrl !== undefined) {
+                        if (meta.websiteUrl && !isSafeUrl(meta.websiteUrl)) {
+                            res.status(400).json({
+                                success: false,
+                                message: 'Invalid website URL. Only http(s) links are allowed.'
+                            });
+                            return resolve();
+                        }
+                        password.websiteUrl = meta.websiteUrl;
+                    }
+                    if (meta.username) password.username = meta.username;
                     if (newPassword) password.encryptedPassword = newPassword;
-                    if (notes !== undefined) password.notes = notes;
-                    if (category) password.category = category;
+                    if (meta.notes !== undefined) password.notes = meta.notes;
+                    if (meta.category) password.category = meta.category;
 
                     password.lastModified = new Date();
 

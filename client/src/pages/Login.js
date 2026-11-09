@@ -19,7 +19,13 @@ const Login = () => {
       await login(email, password);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid credentials');
+      if (!err.response) {
+        setError('Cannot reach the server. Make sure the backend is running (npm run dev in server/) and MongoDB is connected, then try again.');
+      } else if (err.response.status === 401) {
+        setError('Invalid email or password');
+      } else {
+        setError(err.response?.data?.message || 'Login failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

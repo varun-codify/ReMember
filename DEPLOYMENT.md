@@ -163,6 +163,86 @@ serverless API does not ship a rate limiter — if you deploy the API to Vercel
 for public use, enable **Vercel's native rate limiting** (Pro plan) or add a
 Redis-backed limiter.
 
+## Email Reminders (Optional)
+
+The reminder scheduler emails users with due/overdue tasks via Resend. Set these
+variables to enable it:
+
+| Variable | Description |
+|----------|-------------|
+| `RESEND_API_KEY` | Resend API key from https://resend.com/api-keys |
+| `EMAIL_FROM` | Sender address (free plan: `ReMember <onboarding@resend.dev>`) |
+| `APP_URL` | Public app URL used in reminder email links |
+| `CRON_SECRET` | Bearer token protecting the serverless cron endpoint |
+
+- **Express server**: the scheduler runs automatically every 6 hours (no-op
+  until `RESEND_API_KEY` is set).
+- **Vercel**: add a cron entry to `vercel.json` pointing at the cron function
+  (Vercel Cron requires a supported plan):
+  ```json
+  "crons": [{ "path": "/api/cron/reminders", "schedule": "0 */6 * * *" }]
+  ```
+  The endpoint accepts `Authorization: Bearer <CRON_SECRET>`.
+
+Without email configured, the in-app reminder center in the navbar still works.
+
+## AI Quick Capture (Optional)
+
+Natural-language capture ("remind me to call mom friday") and auto-tagging for
+saved videos/links. Uses any OpenAI-compatible chat endpoint — Groq's free
+tier is the default, so this can be enabled with a single key:
+
+| Variable | Description |
+|----------|-------------|
+| `AI_API_KEY` | API key (Groq: https://console.groq.com/keys) — unset to disable |
+| `AI_BASE_URL` | OpenAI-compatible base URL (default `https://api.groq.com/openai/v1`) |
+| `AI_MODEL` | Model (default `llama-3.3-70b-versatile`; `llama-3.1-8b-instant` has higher free rate limits) |
+
+When unset, the AI sections on the Capture page are hidden and all AI calls
+are no-ops — the rest of the app works exactly as before.
+
+## Browser Push Notifications (Optional)
+
+Push reminders for due tasks use the Web Push API (VAPID keys):
+
+| Variable | Description |
+|----------|-------------|
+| `VAPID_PUBLIC_KEY` | Generate both keys with `npx web-push generate-vapid-keys --json` |
+| `VAPID_PRIVATE_KEY` | Same command — keep private |
+| `VAPID_SUBJECT` | Contact for the push service: `mailto:` or `https:` (optional) |
+
+The reminder scheduler sends pushes alongside email digests. Users opt in via
+the reminder bell in the navbar (requires a supported browser; the service
+worker is served from `/sw.js` in production builds).
+
+## Security Hardening (Built In)
+
+The app ships with layered defenses against the common "vibe-coded app"
+vulnerabilities — no configuration needed:
+
+| Threat | Defense |
+|--------|---------|
+| Brute force / abuse | Per-IP rate limits: login 20/15min, register 10/hr, AI 60/15min, global 1000/15min (Express). The serverless `api/` layer has the same rules per warm instance. |
+| NoSQL injection | `$`/`.` keys are stripped from `body`/`query`/`params` on both layers before they can reach Mongoose filters. |
+| Stored XSS | Saved URLs (websites, videos, password sites) must be `http(s)`; the client refuses to render `javascript:`/`data:` links. Emails HTML-escape user content. Strict CSP (`script-src 'self'`) on the client. |
+| CSRF | Bearer-token auth (no cookies), plus origin validation — state-changing requests from unknown origins are rejected with 403. |
+| Header leakage | `helmet` on Express, security headers + CSP in `vercel.json`. |
+
+Operational notes:
+
+- **`CLIENT_URL` is an allowlist** — it can be a comma-separated list. Any
+  frontend origin that should be allowed to call the API must be listed there
+  (the origin check also accepts same-origin requests, so the default
+  Express-served setup needs no change).
+- The serverless limiter is **per warm instance** — it stops single-instance
+  bursts but is not a global quota. For hard guarantees at scale, enable
+  Vercel's native rate limiting (Pro plan) or a Redis-backed limiter.
+- The client CSP in `vercel.json` and the helmet CSP in `server/server.js` are
+  mirrors — keep them in sync when editing either.
+- `client/public/theme.js` is an external script so the CSP can stay strict
+  (`script-src 'self'`, no `'unsafe-inline'`). Don't reintroduce inline
+  `<script>` blocks in `index.html`.
+
 ## Custom Domain (Optional)
 
 1. Go to Vercel Dashboard → Your Project → Settings → Domains

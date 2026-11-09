@@ -1,5 +1,18 @@
 const Password = require('../models/Password');
 const User = require('../models/User');
+const { isSafeUrl, sanitizeText } = require('../utils/security');
+
+// Sanitize metadata fields. The credential itself (encryptedPassword) is
+// never touched — it is the user's secret.
+const sanitizePasswordMeta = (body) => {
+  const out = {};
+  if (body.websiteName !== undefined) out.websiteName = sanitizeText(body.websiteName, { maxLength: 200 });
+  if (body.websiteUrl !== undefined) out.websiteUrl = sanitizeText(body.websiteUrl, { maxLength: 2048 });
+  if (body.username !== undefined) out.username = sanitizeText(body.username, { maxLength: 200 });
+  if (body.notes !== undefined) out.notes = sanitizeText(body.notes, { maxLength: 5000 });
+  if (body.category !== undefined) out.category = sanitizeText(body.category, { maxLength: 40 });
+  return out;
+};
 
 // @route   GET /api/passwords
 // @desc    Get all passwords for user
@@ -86,12 +99,22 @@ exports.getPassword = async (req, res) => {
 // @access  Private
 exports.createPassword = async (req, res) => {
   try {
-    const { websiteName, websiteUrl, username, password, notes, category } = req.body;
+    const { password } = req.body;
+    const meta = sanitizePasswordMeta(req.body);
+    const { websiteName, websiteUrl, username, notes, category } = meta;
 
     if (!websiteName || !username || !password) {
       return res.status(400).json({
         success: false,
         message: 'Website name, username, and password are required'
+      });
+    }
+
+    // The site URL renders into an <a href> in the vault — only http(s) allowed.
+    if (websiteUrl && !isSafeUrl(websiteUrl)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid website URL. Only http(s) links are allowed.'
       });
     }
 
@@ -138,14 +161,23 @@ exports.updatePassword = async (req, res) => {
       });
     }
 
-    const { websiteName, websiteUrl, username, password: newPassword, notes, category } = req.body;
+    const { password: newPassword } = req.body;
+    const meta = sanitizePasswordMeta(req.body);
 
-    if (websiteName) password.websiteName = websiteName;
-    if (websiteUrl !== undefined) password.websiteUrl = websiteUrl;
-    if (username) password.username = username;
+    if (meta.websiteName) password.websiteName = meta.websiteName;
+    if (meta.websiteUrl !== undefined) {
+      if (meta.websiteUrl && !isSafeUrl(meta.websiteUrl)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid website URL. Only http(s) links are allowed.'
+        });
+      }
+      password.websiteUrl = meta.websiteUrl;
+    }
+    if (meta.username) password.username = meta.username;
     if (newPassword) password.encryptedPassword = newPassword;
-    if (notes !== undefined) password.notes = notes;
-    if (category) password.category = category;
+    if (meta.notes !== undefined) password.notes = meta.notes;
+    if (meta.category) password.category = meta.category;
     
     password.lastModified = new Date();
 

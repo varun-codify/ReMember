@@ -3,6 +3,7 @@ const allowCors = require('../_utils/cors');
 const handleError = require('../_utils/errorHandler');
 const authMiddleware = require('../_middleware/auth');
 const Video = require('../../server/models/Video');
+const { sanitizeText, sanitizeTags } = require('../../server/utils/security');
 
 async function handler(req, res) {
     return new Promise((resolve) => {
@@ -44,14 +45,19 @@ async function handler(req, res) {
                         return resolve();
                     }
 
-                    const { title, personalNotes, tags, watchStatus, clickCount, lastWatchedAt } = req.body;
+                    const { watchStatus, clickCount, lastWatchedAt, positionSeconds } = req.body;
+                    const has = (field) => req.body[field] !== undefined;
+                    const title = sanitizeText(req.body.title, { maxLength: 200 });
+                    const personalNotes = sanitizeText(req.body.personalNotes, { maxLength: 5000 });
+                    const tags = sanitizeTags(req.body.tags);
 
                     if (title) video.title = title;
-                    if (personalNotes !== undefined) video.personalNotes = personalNotes;
-                    if (tags !== undefined) video.tags = tags;
+                    if (has('personalNotes')) video.personalNotes = personalNotes;
+                    if (has('tags')) video.tags = tags;
                     if (watchStatus) video.watchStatus = watchStatus;
                     if (clickCount !== undefined) video.clickCount = clickCount;
                     if (lastWatchedAt) video.lastWatchedAt = lastWatchedAt;
+                    if (positionSeconds !== undefined) video.positionSeconds = Math.max(0, Number(positionSeconds) || 0);
 
                     await video.save();
 

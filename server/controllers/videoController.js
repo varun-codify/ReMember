@@ -1,5 +1,7 @@
 const Video = require('../models/Video');
 const { extractYouTubeId, buildThumbnail } = require('../utils/youtube');
+const captureService = require('../services/captureService');
+const { isSafeUrl, sanitizeText, sanitizeTags } = require('../utils/security');
 
 // @route   GET /api/videos
 // @desc    Get all videos for user
@@ -62,12 +64,25 @@ exports.getVideo = async (req, res) => {
 // @access  Private
 exports.createVideo = async (req, res) => {
   try {
-    const { videoUrl, title, personalNotes, tags } = req.body;
+    const { videoUrl } = req.body;
+    const title = sanitizeText(req.body.title, { maxLength: 200 });
+    const personalNotes = sanitizeText(req.body.personalNotes, { maxLength: 5000 });
+    const tags = sanitizeTags(req.body.tags);
 
     if (!videoUrl) {
       return res.status(400).json({
         success: false,
         message: 'Video URL is required'
+      });
+    }
+
+    // The stored URL must be a real http(s) link AND a YouTube link. Without
+    // the protocol check, a crafted value like "javascript:https://youtube.com/..."
+    // would still extract a videoId while storing an executable URL.
+    if (typeof videoUrl !== 'string' || !isSafeUrl(videoUrl)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid YouTube URL'
       });
     }
 
@@ -85,7 +100,7 @@ exports.createVideo = async (req, res) => {
 
     const video = new Video({
       userId: req.userId,
-      videoUrl,
+      videoUrl: videoUrl.trim(),
       videoId,
       title: title || 'YouTube Video',
       thumbnail,
@@ -94,6 +109,22 @@ exports.createVideo = async (req, res) => {
     });
 
     await video.save();
+
+    // Enrich in the background: fetch the transcript (full-text search) and,
+    // when AI is enabled, generate a summary + key points. Never blocks saving.
+    (async () => {
+      try {
+        const transcript = await captureService.fetchYoutubeTranscript(videoId);
+        const enrichment = await captureService.enrichVideo({
+          title: video.title,
+          personalNotes: video.personalNotes || '',
+          transcript
+        });
+        await Video.updateOne({ _id: video._id }, { $set: enrichment });
+      } catch (e) {
+        /* best effort */
+      }
+    })();
 
     res.status(201).json({
       success: true,
@@ -126,14 +157,19 @@ exports.updateVideo = async (req, res) => {
       });
     }
 
-    const { title, personalNotes, tags, watchStatus, clickCount, lastWatchedAt } = req.body;
+    const { watchStatus, clickCount, lastWatchedAt, positionSeconds } = req.body;
+    const has = (field) => req.body[field] !== undefined;
+    const title = sanitizeText(req.body.title, { maxLength: 200 });
+    const personalNotes = sanitizeText(req.body.personalNotes, { maxLength: 5000 });
+    const tags = sanitizeTags(req.body.tags);
 
     if (title) video.title = title;
-    if (personalNotes !== undefined) video.personalNotes = personalNotes;
-    if (tags !== undefined) video.tags = tags;
+    if (has('personalNotes')) video.personalNotes = personalNotes;
+    if (has('tags')) video.tags = tags;
     if (watchStatus) video.watchStatus = watchStatus;
     if (clickCount !== undefined) video.clickCount = clickCount;
     if (lastWatchedAt) video.lastWatchedAt = lastWatchedAt;
+    if (positionSeconds !== undefined) video.positionSeconds = Math.max(0, Number(positionSeconds) || 0);
 
     await video.save();
 

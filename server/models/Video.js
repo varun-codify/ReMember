@@ -44,6 +44,25 @@ const videoSchema = new mongoose.Schema({
     enum: ['not-watched', 'in-progress', 'completed'],
     default: 'not-watched'
   },
+  // YouTube transcript — powers full-text search
+  transcript: {
+    type: String,
+    default: ''
+  },
+  // AI summary + key points
+  summary: {
+    type: String,
+    default: ''
+  },
+  keyPoints: [{
+    type: String
+  }],
+  // Continue-watching support (seconds into the video)
+  positionSeconds: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   duration: {
     type: String,
     default: ''

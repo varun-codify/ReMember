@@ -1,16 +1,23 @@
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
 
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
+const Landing = lazy(() => import('./pages/Landing'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const PasswordVault = lazy(() => import('./pages/PasswordVault'));
 const Tasks = lazy(() => import('./pages/Tasks'));
 const Videos = lazy(() => import('./pages/Videos'));
 const Websites = lazy(() => import('./pages/Websites'));
 const Settings = lazy(() => import('./pages/Settings'));
+const Search = lazy(() => import('./pages/Search'));
+const Capture = lazy(() => import('./pages/Capture'));
+const Notes = lazy(() => import('./pages/Notes'));
+const Collections = lazy(() => import('./pages/Collections'));
+const Assistant = lazy(() => import('./pages/Assistant'));
+const KnowledgeGraph = lazy(() => import('./pages/KnowledgeGraph'));
 
 // Fallback shown while a route chunk loads
 const PageFallback = () => (
@@ -25,6 +32,7 @@ function App() {
       <Router>
         <Suspense fallback={<PageFallback />}>
           <Routes>
+            <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route
@@ -75,7 +83,55 @@ function App() {
                 </PrivateRoute>
               }
             />
-            <Route path="/" element={<Navigate to="/dashboard" />} />
+            <Route
+              path="/search"
+              element={
+                <PrivateRoute>
+                  <Search />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/capture"
+              element={
+                <PrivateRoute>
+                  <Capture />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/notes"
+              element={
+                <PrivateRoute>
+                  <Notes />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/collections"
+              element={
+                <PrivateRoute>
+                  <Collections />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/assistant"
+              element={
+                <PrivateRoute>
+                  <Assistant />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/knowledge"
+              element={
+                <PrivateRoute>
+                  <KnowledgeGraph />
+                </PrivateRoute>
+              }
+            />
+            {/* Public landing page (logged-in users are redirected to /dashboard inside it) */}
           </Routes>
         </Suspense>
       </Router>

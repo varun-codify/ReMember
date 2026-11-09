@@ -9,6 +9,7 @@ const rateLimit = ({
   windowMs = 15 * 60 * 1000,
   max = 100,
   message = 'Too many requests, please try again later.',
+  keyGenerator,
 } = {}) => {
   const hits = new Map();
 
@@ -20,7 +21,12 @@ const rateLimit = ({
   };
 
   return (req, res, next) => {
-    const key = `${req.ip || req.socket.remoteAddress}:${req.originalUrl || req.url}`;
+    // Default: one bucket per IP+path. req.path excludes the query string so
+    // attackers can't rotate ?x=1&x=2 to dodge the limit. Pass keyGenerator to
+    // bucket per-IP only (e.g. a global limiter across all routes).
+    const key = keyGenerator
+      ? keyGenerator(req)
+      : `${req.ip || req.socket.remoteAddress}:${req.path || req.originalUrl || req.url}`;
     const now = Date.now();
     let entry = hits.get(key);
 

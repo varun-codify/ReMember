@@ -3,6 +3,8 @@ const allowCors = require('../_utils/cors');
 const handleError = require('../_utils/errorHandler');
 const authMiddleware = require('../_middleware/auth');
 const Video = require('../../server/models/Video');
+const captureService = require('../../server/services/captureService');
+const { isSafeUrl, sanitizeText, sanitizeTags } = require('../../server/utils/security');
 
 // Helper function to extract YouTube video ID
 const extractYouTubeId = (url) => {
@@ -41,12 +43,25 @@ async function handler(req, res) {
                         data: videos
                     });
                 } else if (req.method === 'POST') {
-                    const { videoUrl, title, personalNotes, tags } = req.body;
+                    const { videoUrl } = req.body;
+                    const title = sanitizeText(req.body.title, { maxLength: 200 });
+                    const personalNotes = sanitizeText(req.body.personalNotes, { maxLength: 5000 });
+                    const tags = sanitizeTags(req.body.tags);
 
                     if (!videoUrl) {
                         res.status(400).json({
                             success: false,
                             message: 'Video URL is required'
+                        });
+                        return resolve();
+                    }
+
+                    // Must be a real http(s) link AND a YouTube link (prevents
+                    // "javascript:https://youtube.com/..." style bypasses)
+                    if (typeof videoUrl !== 'string' || !isSafeUrl(videoUrl)) {
+                        res.status(400).json({
+                            success: false,
+                            message: 'Invalid YouTube URL'
                         });
                         return resolve();
                     }
@@ -66,7 +81,7 @@ async function handler(req, res) {
 
                     const video = new Video({
                         userId: req.userId,
-                        videoUrl,
+                        videoUrl: videoUrl.trim(),
                         videoId,
                         title: title || 'YouTube Video',
                         thumbnail,
@@ -75,6 +90,15 @@ async function handler(req, res) {
                     });
 
                     await video.save();
+
+                    // Enrich in the background (transcript + AI summary) — never blocks saving
+                    (async () => {
+                        try {
+                            const transcript = await captureService.fetchYoutubeTranscript(videoId);
+                            const enrichment = await captureService.enrichVideo({ title: video.title, personalNotes: video.personalNotes || '', transcript });
+                            await Video.updateOne({ _id: video._id }, { $set: enrichment });
+                        } catch (e) { /* best effort */ }
+                    })();
 
                     res.status(201).json({
                         success: true,

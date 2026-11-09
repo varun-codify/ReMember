@@ -10,7 +10,10 @@ ReMember is a production-ready MERN stack application that serves as your person
 - **YouTube Organizer** - Save and track videos for later
 - **Website Memory** - Remember useful websites and AI tools
 - **Secure Authentication** - JWT-based auth with bcrypt
-- **Dark Mode UI** - Professional, clean interface
+- **Global Search** - Find anything across all modules instantly
+- **Reminders** - In-app badge, email digests, and browser push notifications
+- **Quick Capture** - One-click bookmarklet + AI natural-language capture
+- **Dark Mode & PWA** - Light/dark themes and an installable, offline-capable app
 
 ## Prerequisites
 
@@ -42,6 +45,25 @@ JWT_SECRET=remember_secure_jwt_secret_key_change_in_production_2024
 ENCRYPTION_KEY=remember_encryption_key_change_in_production_2024
 NODE_ENV=development
 CLIENT_URL=http://localhost:3000
+# CLIENT_URL is a comma-separated allowlist of frontend origins allowed to call
+# the API (used for CORS + CSRF origin checks). Add your deployed frontend URL
+# in production, e.g. CLIENT_URL=https://remember.example.com
+
+# Optional — enable AI quick capture (Groq free tier by default, OpenAI-compatible)
+# AI_API_KEY=
+# AI_BASE_URL=https://api.groq.com/openai/v1
+# AI_MODEL=llama-3.3-70b-versatile
+
+# Optional — browser push notifications (generate keys with: npx web-push generate-vapid-keys --json)
+# VAPID_PUBLIC_KEY=
+# VAPID_PRIVATE_KEY=
+# VAPID_SUBJECT=mailto:you@example.com
+
+# Optional — email reminders via Resend
+# RESEND_API_KEY=
+# EMAIL_FROM=ReMember <onboarding@resend.dev>
+# APP_URL=http://localhost:3000
+# CRON_SECRET=
 ```
 
 **Important**: In production, change `JWT_SECRET` and `ENCRYPTION_KEY` to secure random values.
@@ -224,6 +246,17 @@ GET    /api/websites/:id           - Get single website
 POST   /api/websites               - Add website
 PUT    /api/websites/:id           - Update website
 DELETE /api/websites/:id           - Delete website
+```
+
+### Search / Reminders / AI (Protected)
+```
+GET    /api/search?q=term          - Global search across all modules
+GET    /api/reminders              - Due/overdue items for the reminder bell
+GET    /api/reminders/config       - Push capability + VAPID public key
+POST   /api/reminders              - Subscribe/unsubscribe push (action: "subscribe" | "unsubscribe")
+GET    /api/ai/status              - Whether AI features are configured
+POST   /api/ai/parse               - Parse a natural-language note into capture data
+POST   /api/ai/enrich              - Generate summary + tags for a saved link/video
 ```
 
 ## Data Security

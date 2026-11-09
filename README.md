@@ -59,6 +59,74 @@ Users forget:
 - Security notices and recommendations
 - Production-ready implementation
 
+### 🔎 Global Search
+- Search across passwords, tasks, videos, and links from one box
+- Instant results grouped by module
+- Safe by design: searches metadata only, never encrypted password content
+
+### ⏰ Reminders
+- In-app reminder center with badge counts in the navbar
+- Overdue / due-today tasks and stale watch-later videos surfaced automatically
+- Optional email digests for due tasks (Resend, config-gated)
+
+### ⚡ Quick Capture
+- One-click bookmarklet to save any tab into ReMember
+- Auto-detects YouTube videos vs websites
+- Auto-fetches video titles and page metadata
+
+### ✨ AI Capture
+- Natural-language parsing: "remind me to call mom friday" becomes a structured task
+- Auto-tags and one-line summaries for saved videos and links
+- OpenAI-compatible, Groq free tier by default — config-gated with `AI_API_KEY`
+
+### 🌙 Dark Mode & PWA
+- Light/dark theme toggle with system-preference detection (no flash on load)
+- Installable PWA with generated app icons and an offline app shell
+- Browser push notifications for due/overdue tasks (Web Push + VAPID)
+
+### 📚 Universal Capture
+- YouTube videos (auto titles, thumbnails, **transcripts**) — searchable inside
+- Webpages with **extracted page text** for full-text search
+- **PDFs** (text extracted at save time), **images**, and **GitHub repos** (stars, language, description)
+- Quick Notes — write an idea down, instantly searchable everywhere
+
+### 🗂 Smart Collections
+- Rule-based collections (types, categories, tags, favorites) that fill themselves automatically
+- Auto-categorization and auto-tagging via AI on every capture
+
+### 🔍 Full-text Search
+- Search **inside** notes, extracted webpage/PDF content, and YouTube transcripts
+- AI summaries + key points shown right in the results
+
+### ✨ AI Summaries & Continue Learning
+- One-click AI summaries with key points for videos, links, and notes
+- **Resume watching** — videos open at your saved position
+- **Continue reading** — per-link reading progress (25/50/75/100%)
+
+### 📊 Learning Dashboard
+- Weekly activity chart (saves per day)
+- Category breakdown of saved links
+- "Continue learning" — pick up where you left off
+
+### 🤖 AI Assistant
+- Memory-aware chat: asks questions **about your library** — "find everything I saved about React"
+- Attach any saved video, link, or note for deep-dive answers ("Explain this article")
+- **Quiz mode**: generates multiple-choice quizzes from your saved items and grades you
+- Never invents items — answers only from your saved library
+
+### 🕸 Knowledge Graph
+- Visualizes your library as an interactive graph — nodes are saved items, edges connect items sharing tags
+- Client-side force simulation (no dependencies), filters by type and topic, click any node to explore connections
+- Top-topic chips spotlight related clusters
+
+### 🎯 Smart Recommendations & Daily Review
+- AI suggests related topics to learn next based on your most-used tag
+- **Daily review** — spaced-repetition style: "You haven't reviewed this in 18 days" for stale items
+
+### 📧 Weekly AI Digest
+- Automatic weekly email: videos completed, notes created, topics learned, forgotten resources, and a suggested next topic
+- Sends via Resend (config-gated), once per week
+
 ## 🏗️ Architecture
 
 ### Technology Stack
@@ -201,6 +269,22 @@ For comprehensive setup instructions, environment configuration, and testing gui
 | POST | `/api/websites` | Add website |
 | PUT | `/api/websites/:id` | Update website |
 | DELETE | `/api/websites/:id` | Delete website |
+
+### AI (Protected)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/ai/status` | Whether AI is configured |
+| POST | `/api/ai/parse` | Parse natural language into structured capture |
+| POST | `/api/ai/enrich` | Auto-summarize + tag a saved item |
+| POST | `/api/ai/summarize-item` | Summarize a saved video/link/note |
+| POST | `/api/ai/chat` | Memory-aware assistant chat (supports quiz mode) |
+| POST | `/api/ai/recommendations` | Suggest related topics to learn next |
+
+### Knowledge & Review (Protected)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/graph` | Knowledge graph nodes, links, and top topics |
+| GET | `/api/review` | Items not reviewed recently (spaced repetition) |
 
 ## 🔐 Security Features
 
